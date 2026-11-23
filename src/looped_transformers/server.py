@@ -1,9 +1,10 @@
-"""Local experiment dashboard and bounded job queue. No remote code/config submission."""
+"""Local experiment dashboard, bounded queue, and constrained recipe derivation."""
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from dataclasses import replace
+import json
 import hmac
 import os
 from pathlib import Path
@@ -15,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from .experiment import load_experiment
+from .experiment import experiment_from_dict, load_experiment
 from .inference import ModelManager, generate
 from .runner import run_experiment
 from .store import RunStore
@@ -32,6 +33,19 @@ class GenerateRequest(JobRequest):
     max_new_tokens: int = Field(default=32, ge=1, le=256)
     temperature: float = Field(default=0.0, ge=0, le=5)
     seed: int = Field(default=42, ge=0)
+
+
+class DerivedRecipeRequest(JobRequest):
+    """Safe no-code variation of a trusted, existing experiment configuration."""
+
+    name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+    variant_name: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+    start: int = Field(ge=0)
+    end: int = Field(ge=0)
+    steps: int = Field(ge=1, le=32)
+    mode: str = Field(pattern=r"^(block|layer)$")
+    strategy: str = Field(pattern=r"^(euler|naive)$")
+    anchor: float = Field(ge=0, le=1)
 
 
 def create_app(config_root="configs", output_root="runs", manager=None):
@@ -94,6 +108,48 @@ def create_app(config_root="configs", output_root="runs", manager=None):
     def configs():
         return sorted(str(p.relative_to(config_root)) for p in config_root.rglob("*")
                       if p.suffix in {".json", ".yaml", ".yml"} and p.is_file() and p.resolve().is_relative_to(config_root))
+
+    @app.post("/api/configs/derive", status_code=201)
+    def derive_config(body: DerivedRecipeRequest):
+        """Save one validated loop variant based on a trusted local preset.
+
+        This never accepts arbitrary model IDs, dataset paths, or executable code.
+        """
+        source = resolve_config(body.config)
+        raw = source.as_dict()
+        raw["name"] = body.name
+        raw["variants"] = [{
+            "name": body.variant_name,
+            "loop": {"start": body.start, "end": body.end, "steps": body.steps,
+                     "mode": body.mode, "strategy": body.strategy, "anchor": body.anchor}
+        }]
+        target_dir = (config_root / "generated").resolve()
+        # Source model/datasets stay fixed. Make paths portable relative to the new file.
+        for dataset in raw["datasets"]:
+            dataset["path"] = os.path.relpath(dataset["path"], target_dir)
+        raw["output_dir"] = os.path.relpath(store.root, target_dir)
+        try:
+            candidate = experiment_from_dict(raw, target_dir)
+            if candidate.model.backend == "toy":
+                candidate.variants[0].loop.validate(candidate.model.num_layers)
+        except (ValueError, TypeError, KeyError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target = target_dir / f"{body.name}.json"
+            with target.open("x", encoding="utf-8") as output:
+                json.dump(raw, output, indent=2)
+                output.write("\\n")
+        except FileExistsError as exc:
+            raise HTTPException(status_code=409, detail="Recipe name already exists") from exc
+        except OSError as exc:
+            raise HTTPException(status_code=503, detail="Config directory is not writable") from exc
+        return {"config": str(target.relative_to(config_root)), "name": body.name}
+
+    @app.get("/api/configs/{name:path}")
+    def config_details(name: str):
+        experiment = resolve_config(name)
+        return {"file": name, **experiment.as_dict()}
 
     @app.get("/api/runs")
     def runs():
