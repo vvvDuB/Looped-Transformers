@@ -227,3 +227,60 @@ def test_studio_recipe_rejects_invalid_and_unsafe_input(service_files):
             response = client.post("/api/configs/derive", json=recipe | change)
             assert response.status_code in {404, 422}, (change, response.text)
         assert not (service_files[0] / "generated").exists()
+
+
+def test_projects_model_selection_and_scoped_runs(service_files):
+    with client_for(service_files) as client:
+        initial = client.get("/api/projects").json()
+        assert len(initial) == 1
+        default_id = initial[0]["id"]
+        assert initial[0]["config_count"] == 1
+        created = client.post("/api/projects", json={"name": "Qwen loop research"})
+        assert created.status_code == 201, created.text
+        project_id = created.json()["id"]
+        assert client.get(f"/api/projects/{project_id}/models").json() == []
+        assert client.post("/api/jobs", json={
+            "config": "smoke.json", "project_id": project_id}).status_code == 404
+        linked = client.post(f"/api/projects/{project_id}/configs",
+                             json={"config": "smoke.json"})
+        assert linked.status_code == 201, linked.text
+        models = client.get(f"/api/projects/{project_id}/models").json()
+        assert len(models) == 1
+        assert models[0]["configs"] == ["smoke.json"]
+        submitted = client.post("/api/jobs", json={
+            "config": "smoke.json", "project_id": project_id})
+        assert submitted.status_code == 202, submitted.text
+        done = await_job(client, submitted.json()["id"])
+        assert done["status"] == "completed", done
+        project_runs = client.get(f"/api/projects/{project_id}/runs").json()
+        assert [run["id"] for run in project_runs] == [done["run_id"]]
+        assert client.get(f"/api/projects/{default_id}/runs").json() == []
+        recipe = client.post("/api/configs/derive", json={
+            "config": "smoke.json", "project_id": project_id,
+            "name": "project-loop", "variant_name": "euler2",
+            "start": 1, "end": 2, "steps": 2,
+            "mode": "block", "strategy": "euler", "anchor": 0.5})
+        assert recipe.status_code == 201, recipe.text
+        config_name = recipe.json()["config"]
+        assert config_name in client.get(f"/api/projects/{project_id}").json()["configs"]
+        assert config_name not in client.get(f"/api/projects/{default_id}").json()["configs"]
+        assert client.post("/api/jobs", json={"config": config_name}).status_code == 404
+        assert len(client.get(f"/api/projects/{project_id}/models").json()[0]["configs"]) == 2
+
+
+def test_project_membership_persists_and_rejects_unknown_projects(service_files):
+    configs, output, _ = service_files
+    with client_for(service_files) as client:
+        project_id = client.post("/api/projects", json={
+            "name": "Persistent Research", "description": "An isolated workspace"}).json()["id"]
+        assert client.post(f"/api/projects/{project_id}/configs", json={
+            "config": "smoke.json"}).status_code == 201
+        assert client.get("/api/projects/" + "0" * 32).status_code == 404
+        assert client.post("/api/projects", json={"name": "   "}).status_code == 422
+        assert client.post("/api/jobs", json={
+            "config": "smoke.json", "project_id": "0" * 32}).status_code == 404
+    with TestClient(create_app(configs, output)) as client:
+        saved = client.get(f"/api/projects/{project_id}")
+        assert saved.status_code == 200
+        assert saved.json()["configs"] == ["smoke.json"]
+        assert saved.json()["name"] == "Persistent Research"
