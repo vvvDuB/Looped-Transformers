@@ -1,4 +1,4 @@
-# Looped Transformers / LoopLab
+# Looped Transformers
 
 An experiment infrastructure for studying **frozen Mixture-of-Experts models and recurrent depth**: change the execution of a model, run inference, measure perplexity and proximity to its baseline, inspect expert routing, and retain reproducible benchmark results.
 
