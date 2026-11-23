@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LoopLab · MoE research</title>
+<style>
+:root{color-scheme:dark;--bg:#101214;--panel:#191c20;--line:#30343a;--text:#e8eaed;--muted:#a2a9b4;--accent:#8bb4f8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 system-ui,sans-serif}
+header{padding:26px 32px;border-bottom:1px solid var(--line);display:flex;gap:24px;align-items:center;justify-content:space-between}
+h1{font-size:22px;margin:0;letter-spacing:-.5px}h2{font-size:17px;margin:0 0 14px}p{margin:6px 0;color:var(--muted)}
+main{max-width:1400px;margin:auto;padding:26px 32px;display:grid;grid-template-columns:300px minmax(0,1fr);gap:24px}
+section{background:var(--panel);padding:20px;border:1px solid var(--line);border-radius:10px;margin-bottom:18px}
+label{display:block;margin:10px 0 5px;color:var(--muted)}select,input,textarea,button{font:inherit;border-radius:6px;padding:9px 11px;border:1px solid #434953;background:#111419;color:var(--text)}
+select,input,textarea{width:100%}button{cursor:pointer;margin:10px 6px 0 0}button.primary{background:#b2cfff;color:#101827;border-color:#b2cfff;font-weight:600}button:disabled{opacity:.5;cursor:wait}
+table{width:100%;border-collapse:collapse;white-space:nowrap}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}th{font-size:12px;color:var(--muted);font-weight:500}
+tr.selectable{cursor:pointer}tr.selectable:hover{background:#252b33}code{font:12px ui-monospace,monospace;color:var(--accent)}.scroll{overflow:auto}.status{font-size:12px;color:var(--accent)}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 ui-monospace,monospace;max-height:500px;overflow:auto}#message{margin-bottom:16px;color:var(--accent);white-space:pre-wrap}
+.error{color:#ffaaaa!important}small{color:var(--muted)}a{color:var(--accent)}details{margin-top:12px}summary{cursor:pointer;color:var(--muted)}
+@media(max-width:850px){main{grid-template-columns:1fr;padding:18px}header{padding:18px}}
+</style>
+</head>
+<body>
+<header><div><h1>LoopLab</h1><p>Frozen MoE transformations, inference and paired evaluation</p></div><span class="status">Research environment · v0.1</span></header>
+<main>
+<aside>
+<section><h2>Experiment</h2><label for="config">Configuration</label><select id="config"></select><button class="primary" id="run">Start run</button><button id="refresh">Refresh</button><p><small>One model at a time. Results and manifests are retained locally.</small></p>
+<details><summary>API access</summary><label for="key">API key (if configured)</label><input id="key" type="password" autocomplete="off"><button id="connect">Connect</button></details></section>
+<section><h2>Inference</h2><label for="variant">Variant name</label><input id="variant" value="baseline"><label for="prompt">Prompt</label><textarea id="prompt" rows="4">The purpose of this experiment is</textarea><label for="tokens">New tokens</label><input id="tokens" type="number" min="1" max="256" value="24"><button id="generate">Generate</button><p><small>Complete context is recomputed at every token. The toy model has random weights and produces diagnostic output.</small></p><pre id="generation"></pre></section>
+<section><h2>Queue</h2><div id="jobs"><small>No jobs in this session.</small></div></section>
+</aside>
+<div>
+<div id="message" role="status">Loading configurations and runs…</div>
+<section><h2>Runs</h2><div class="scroll"><table><thead><tr><th>Name</th><th>Status</th><th>Started</th><th>Run ID</th></tr></thead><tbody id="runs"></tbody></table></div></section>
+<section><h2 id="result-title">Results</h2><p id="result-caption">Select a completed run to inspect its baseline and transformations.</p><div class="scroll"><table><thead id="metrics-head"></thead><tbody id="metrics"></tbody></table></div><details><summary>Full report and provenance</summary><pre id="report"></pre></details></section>
+<section><h2>Interpretation</h2><p>Perplexity measures next-token prediction. KL and Jensen–Shannon measure distance from the baseline. Lower distance alone does not establish improved reasoning. Confirm promising configurations on independent data and record their compute cost.</p><p><small>Inkling 2 Mini is a reference for models trained with loops. Its learned recurrence and per-visit state are different from a training-free wrapper.</small></p></section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+async function api(path,body){const headers={};if($('key').value)headers.Authorization='Bearer '+$('key').value;if(body!==undefined)headers['Content-Type']='application/json';const r=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));return data}
+function message(text,error=false){$('message').textContent=text;$('message').classList.toggle('error',error)}
+function cell(row,text){const td=document.createElement('td');td.textContent=text;row.append(td);return td}
+function number(value,digits=4){return typeof value==='number'?value.toFixed(digits):'—'}
+async function refresh(){try{const [configs,runs,jobs]=await Promise.all([api('configs'),api('runs'),api('jobs')]);const selected=$('config').value;$('config').replaceChildren(...configs.map(name=>{const o=document.createElement('option');o.value=name;o.textContent=name;return o}));if(configs.includes(selected))$('config').value=selected;
+$('runs').replaceChildren(...runs.map(run=>{const tr=document.createElement('tr');tr.className='selectable';cell(tr,run.name);cell(tr,run.status);cell(tr,new Date(run.created_at).toLocaleString());cell(tr,run.id.slice(0,10));tr.onclick=()=>showRun(run.id);return tr}));
+$('jobs').replaceChildren(...jobs.slice(-6).reverse().map(job=>{const div=document.createElement('div');const p=document.createElement('p');p.textContent=job.config+' · '+job.status;div.append(p);if(job.progress){const s=document.createElement('small');s.textContent=job.progress;div.append(s)}if(job.error){const p=document.createElement('p');p.className='error';p.textContent=job.error;div.append(p)}if(['queued','running'].includes(job.status)){const b=document.createElement('button');b.textContent='Cancel';b.onclick=()=>api('jobs/'+job.id+'/cancel',{}).then(refresh).catch(e=>message(e.message,true));div.append(b)}return div}));message(runs.length+' runs · '+configs.length+' configurations')}catch(e){message(e.message,true)}}
+async function showRun(id){try{const run=await api('runs/'+id);$('result-title').textContent=run.name;$('report').textContent=JSON.stringify(run,null,2);$('metrics').replaceChildren();$('metrics-head').replaceChildren();if(!run.summary){$('result-caption').textContent=run.error||'Run is '+run.status;return}$('result-caption').textContent='K=1 identity: '+run.summary.checks.k1_identity+' · Baseline restored: '+run.summary.checks.baseline_restored+' · '+number(run.summary.wall_seconds,2)+' s';const head=document.createElement('tr');for(const title of ['Dataset','Variant','Perplexity','Accuracy','Δ NLL','KL','Top-1 agreement','Forward s']){const th=document.createElement('th');th.textContent=title;head.append(th)}$('metrics-head').append(head);for(const dataset of run.summary.datasets){for(const [name,m]of Object.entries(dataset.metrics)){const c=dataset.comparisons[name]||{},p=c.logits||{};const tr=document.createElement('tr');cell(tr,dataset.kind);cell(tr,name);cell(tr,number(m.perplexity));cell(tr,typeof m.accuracy==='number'?number(100*m.accuracy,1)+'%':'—');cell(tr,number(c.mean_nll_delta));cell(tr,number(p.kl_baseline_to_candidate,6));cell(tr,typeof p.top1_agreement==='number'?number(100*p.top1_agreement,1)+'%':'—');cell(tr,number(m.forward_seconds??c.forward_seconds??dataset.baseline_forward_seconds,2));$('metrics').append(tr)}}}catch(e){message(e.message,true)}}
+$('run').onclick=async()=>{try{const j=await api('jobs',{config:$('config').value});message('Queued '+j.id);await refresh()}catch(e){message(e.message,true)}};
+$('refresh').onclick=refresh;$('connect').onclick=refresh;
+$('generate').onclick=async()=>{const b=$('generate');b.disabled=true;try{const r=await api('generate',{config:$('config').value,variant:$('variant').value,prompt:$('prompt').value,max_new_tokens:Number($('tokens').value)});$('generation').textContent=r.text+'\n\n'+r.generated_tokens+' tokens · '+number(r.seconds,2)+' s · '+r.stop_reason}catch(e){message(e.message,true)}finally{b.disabled=false}};
+refresh();setInterval(()=>{if(!document.hidden)refresh()},5000);
+</script>
+</body></html>

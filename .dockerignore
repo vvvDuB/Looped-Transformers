@@ -1,0 +1,12 @@
+.git
+.venv
+runs
+models
+checkpoints
+__pycache__
+*.egg-info
+.pytest_cache
+.env
+.env.*
+dist
+build

@@ -1,0 +1,11 @@
+{"_meta":{"name":"LoopLab synthetic text smoke set","split":"synthetic","purpose":"smoke","source":"Original synthetic examples authored for this repository; not evidence of model quality."}}
+{"id":"text-01","text":"A controlled experiment begins with a reference measurement. Changing one parameter at a time helps identify which change caused the observed result."}
+{"id":"text-02","text":"The library opens at nine in the morning. A reader arrives ten minutes early and waits outside until the doors open."}
+{"id":"text-03","text":"A queue processes its oldest waiting item first. A stack removes the item that was added most recently."}
+{"id":"text-04","text":"Three boxes contain four pencils each. Combining their contents produces twelve pencils, assuming none are lost along the way."}
+{"id":"text-05","text":"A mixture of experts selects a subset of its expert networks for each token. Repeating a layer can change these selections when the hidden representation changes."}
+{"id":"text-06","text":"Measurements need units. A duration reported in milliseconds should be converted before it is compared with a duration reported in seconds."}
+{"id":"text-07","text":"A file fingerprint identifies exact bytes. Changing a line ending changes the fingerprint even when the displayed words remain the same."}
+{"id":"text-08","text":"A benchmark should keep its evaluation examples separate from the examples used to choose experimental settings. Otherwise the estimate can become overly optimistic."}
+{"id":"text-09","text":"Nel laboratorio registriamo sia il risultato sia il costo del calcolo. Una risposta diversa non dimostra, da sola, un miglioramento del modello."}
+{"id":"text-10","text":"A temperature sensor sends one reading every minute. Missing readings must be marked as unavailable instead of silently replaced with zero."}

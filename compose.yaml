@@ -1,0 +1,12 @@
+services:
+  looplab:
+    build: .
+    ports:
+      - '127.0.0.1:8765:8765'
+    environment:
+      LOOPLAB_API_KEY: ${LOOPLAB_API_KEY:?Set LOOPLAB_API_KEY before starting the service}
+    volumes:
+      - ./runs:/runs
+      - ./configs:/app/configs:ro
+      - ./data:/app/data:ro
+    restart: unless-stopped

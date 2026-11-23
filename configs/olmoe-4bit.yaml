@@ -1,0 +1,24 @@
+name: olmoe-1b-7b-screen
+model:
+  backend: hf
+  model_id: allenai/OLMoE-1B-7B-0924-Instruct
+  revision: null
+  device: cuda
+  dtype: bfloat16
+  load_in_4bit: true
+  max_context: 512
+datasets:
+  - {path: ../data/smoke_text.jsonl, kind: text, split: synthetic, purpose: smoke}
+  - {path: ../data/smoke_qa.jsonl, kind: qa, split: synthetic, purpose: smoke}
+variants:
+  - name: identity
+    loop: {start: 6, end: 9, steps: 1, mode: layer}
+  - name: euler-layer
+    loop: {start: 6, end: 9, steps: 2, mode: layer, anchor: 0.5}
+  - name: euler-block
+    loop: {start: 6, end: 9, steps: 2, mode: block, anchor: 0.5}
+stride: 256
+bootstrap_samples: 2000
+seed: 42
+trace: true
+output_dir: ../runs

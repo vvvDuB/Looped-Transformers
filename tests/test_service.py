@@ -1,0 +1,184 @@
+"""Local HTTP service contract: real experiments, inference, and bounded work."""
+from contextlib import contextmanager
+import json
+import threading
+import time
+
+import pytest
+
+pytest.importorskip("fastapi")
+pytest.importorskip("httpx")
+from fastapi.testclient import TestClient
+
+from looplab.inference import ModelManager
+from looplab.server import create_app
+
+
+@pytest.fixture
+def service_files(tmp_path, monkeypatch):
+    monkeypatch.delenv("LOOPLAB_API_KEY", raising=False)
+    configs = tmp_path / "configs"
+    configs.mkdir()
+    data = tmp_path / "text.jsonl"
+    data.write_text('{"id":"one","text":"Two plus two is four."}\n'
+                    '{"id":"two","text":"A queue processes items in order."}\n', encoding="utf-8")
+    config = {
+        "name": "http-smoke",
+        "model": {"backend": "toy", "num_layers": 4, "width": 8,
+                  "num_experts": 3, "top_k": 2, "max_context": 64},
+        "datasets": [{"path": "../text.jsonl", "kind": "text",
+                      "split": "synthetic", "purpose": "smoke"}],
+        "variants": [{"name": "loop2", "loop": {"start": 1, "end": 2, "steps": 2}}],
+        "bootstrap_samples": 100,
+        "output_dir": "../ignored-config-output",
+    }
+    (configs / "smoke.json").write_text(json.dumps(config), encoding="utf-8")
+    return configs, tmp_path / "runs", config
+
+
+@contextmanager
+def client_for(service_files, manager=None):
+    configs, output, _ = service_files
+    with TestClient(create_app(configs, output, manager=manager)) as client:
+        yield client
+
+
+def await_job(client, job_id, timeout=10):
+    deadline = time.monotonic() + timeout
+    waiter = threading.Event()
+    last = None
+    while time.monotonic() < deadline:
+        response = client.get(f"/api/jobs/{job_id}")
+        assert response.status_code == 200
+        last = response.json()
+        if last["status"] in {"completed", "failed", "cancelled"}:
+            return last
+        waiter.wait(0.005)
+    pytest.fail(f"Job failed to finish before deadline: {last}")
+
+
+def test_real_job_lifecycle_persists_run_and_provenance(service_files):
+    manager = ModelManager()
+    with client_for(service_files, manager) as client:
+        assert client.get("/api/health").json()["cache_policy"] == "full_context_recompute"
+        assert client.get("/api/configs").json() == ["smoke.json"]
+        assert client.get("/api/runs").json() == []
+        submitted = client.post("/api/jobs", json={"config": "smoke.json"})
+        assert submitted.status_code == 202
+        job = await_job(client, submitted.json()["id"])
+        assert job["status"] == "completed", job
+        assert "cancel" not in job and "future" not in job
+        runs = client.get("/api/runs").json()
+        assert len(runs) == 1
+        assert runs[0]["id"] == job["run_id"]
+        assert runs[0]["status"] == "completed"
+        response = client.get(f"/api/runs/{job['run_id']}")
+        assert response.status_code == 200
+        record = response.json()
+        assert record["summary"]["run_id"] == job["run_id"]
+        assert record["config"]["name"] == "http-smoke"
+        assert record["config"]["output_dir"] == str(service_files[1].resolve())
+        assert (service_files[1] / job["run_id"] / "summary.json").is_file()
+        assert not (service_files[0].parent / "ignored-config-output").exists()
+        assert client.get("/api/jobs").json()[0]["status"] == "completed"
+    assert manager.status()["loaded"] is False
+
+
+def test_generation_uses_named_variant_and_model_lifecycle(service_files):
+    with client_for(service_files) as client:
+        payload = {"config": "smoke.json", "prompt": "Hi", "variant": "loop2",
+                   "max_new_tokens": 3, "temperature": 0.7, "seed": 12}
+        first = client.post("/api/generate", json=payload)
+        second = client.post("/api/generate", json=payload)
+        assert first.status_code == 200, first.text
+        assert second.status_code == 200, second.text
+        assert first.json()["token_ids"] == second.json()["token_ids"]
+        assert first.json()["inference_mode"] == "full_context_recompute"
+        assert client.get("/api/models").json()["loaded"] is True
+        assert client.post("/api/models/unload").json() == {"loaded": False}
+        assert client.get("/api/models").json()["loaded"] is False
+        assert client.post("/api/generate", json=payload | {"variant": "unknown"}).status_code == 422
+        assert client.post("/api/generate", json=payload | {"prompt": "x" * 64}).status_code == 422
+        assert client.post("/api/generate", json=payload | {"arbitrary": "value"}).status_code == 422
+
+
+def test_config_traversal_absolute_paths_and_symlink_escape_are_rejected(service_files):
+    configs, _, config = service_files
+    outside = configs.parent / "outside.json"
+    outside.write_text(json.dumps(config), encoding="utf-8")
+    (configs / "escape.json").symlink_to(outside)
+    with client_for(service_files) as client:
+        assert "escape.json" not in client.get("/api/configs").json()
+        for name in ("../outside.json", str(outside), "escape.json", "missing.json", "../text.jsonl"):
+            result = client.post("/api/jobs", json={"config": name})
+            assert result.status_code == 404, (name, result.text)
+        assert client.get("/api/jobs").json() == []
+        assert client.get("/api/jobs/missing").status_code == 404
+        assert client.post("/api/jobs/missing/cancel").status_code == 404
+        assert client.get("/api/runs/invalid").status_code == 404
+
+
+def test_foreign_origin_writes_are_blocked_before_work_is_started(service_files):
+    with client_for(service_files) as client:
+        payload = {"config": "smoke.json", "prompt": "Hi", "max_new_tokens": 1}
+        for endpoint, body in (("/api/jobs", {"config": "smoke.json"}),
+                               ("/api/generate", payload), ("/api/models/unload", {})):
+            response = client.post(endpoint, json=body, headers={"Origin": "https://foreign.example"})
+            assert response.status_code == 403
+        allowed = client.post("/api/generate", json=payload, headers={"Origin": "http://testserver"})
+        assert allowed.status_code == 200, allowed.text
+        assert client.get("/api/jobs").json() == []
+        assert allowed.headers["x-content-type-options"] == "nosniff"
+        assert allowed.headers["cache-control"] == "no-store"
+
+
+def test_optional_bearer_key_guards_api_reads_and_writes(service_files, monkeypatch):
+    monkeypatch.setenv("LOOPLAB_API_KEY", "local-test-key")
+    with client_for(service_files) as client:
+        assert client.get("/api/health").status_code == 401
+        assert client.get("/api/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
+        assert client.post("/api/jobs", json={"config": "smoke.json"}).status_code == 401
+        authenticated = client.get("/api/health", headers={"Authorization": "Bearer local-test-key"})
+        assert authenticated.status_code == 200
+
+
+def test_queue_is_serial_bounded_and_pending_jobs_can_be_cancelled(service_files, monkeypatch):
+    first_started = threading.Event()
+    release_first = threading.Event()
+    calls = []
+
+    def controlled_experiment(experiment, manager, progress):
+        calls.append(experiment.name)
+        first_started.set()
+        if not release_first.wait(timeout=10):
+            raise RuntimeError("test did not release worker")
+        return {"run_id": "1" * 32}
+
+    monkeypatch.setattr("looplab.server.run_experiment", controlled_experiment)
+    try:
+        with client_for(service_files) as client:
+            first = client.post("/api/jobs", json={"config": "smoke.json"})
+            assert first.status_code == 202
+            assert first_started.wait(timeout=5)
+            pending = []
+            for _ in range(7):
+                response = client.post("/api/jobs", json={"config": "smoke.json"})
+                assert response.status_code == 202
+                pending.append(response.json()["id"])
+            assert len(calls) == 1
+            assert all(client.get(f"/api/jobs/{job_id}").json()["status"] == "queued" for job_id in pending)
+            assert client.post("/api/jobs", json={"config": "smoke.json"}).status_code == 429
+            for job_id in pending:
+                assert client.post(f"/api/jobs/{job_id}/cancel").json()["cancel_requested"] is True
+            release_first.set()
+            assert await_job(client, first.json()["id"])["status"] == "completed"
+            for job_id in pending:
+                assert await_job(client, job_id)["status"] == "cancelled"
+            assert len(calls) == 1
+            # Cancelled queue entries release their capacity for future work.
+            subsequent = client.post("/api/jobs", json={"config": "smoke.json"})
+            assert subsequent.status_code == 202
+            assert await_job(client, subsequent.json()["id"])["status"] == "completed"
+            assert len(calls) == 2
+    finally:
+        release_first.set()

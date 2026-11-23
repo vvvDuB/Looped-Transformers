@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "looplab"
+version = "0.1.0"
+description = "Reproducible infrastructure for frozen MoE and looped-transformer research"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26,<3", "PyYAML>=6,<7"]
+
+[project.optional-dependencies]
+hf = ["torch>=2.6,<3", "transformers>=5.24,<6", "accelerate>=1,<2", "safetensors>=0.5"]
+quant = ["bitsandbytes>=0.46"]
+server = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1"]
+dev = ["pytest>=8,<10", "httpx>=0.27,<1", "ruff>=0.9,<1"]
+
+[project.scripts]
+looplab = "looplab.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+looplab = ["web/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = ["hf: optional PyTorch/Transformers integration tests without checkpoint downloads"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

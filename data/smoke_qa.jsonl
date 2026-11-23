@@ -1,0 +1,13 @@
+{"_meta":{"name":"LoopLab synthetic QA smoke set","split":"synthetic","purpose":"smoke","source":"Original synthetic examples authored for this repository; balanced answer positions; not a scientific benchmark."}}
+{"id":"qa-01","question":"A box holds three red tokens and two blue tokens. How many tokens are in the box?","choices":["Five","Three","Six","Two"],"answer":0}
+{"id":"qa-02","question":"Which data structure removes the most recently added item first?","choices":["Queue","Stack","Set","Sorted table"],"answer":1}
+{"id":"qa-03","question":"A train departs at 14:10 and arrives 25 minutes later. What is its arrival time?","choices":["14:25","14:30","14:35","14:45"],"answer":2}
+{"id":"qa-04","question":"Which operation preserves the numerical value of a fraction?","choices":["Adding one only to its numerator","Doubling only its denominator","Subtracting one only from its denominator","Multiplying both terms by the same nonzero number"],"answer":3}
+{"id":"qa-05","question":"A folder contains files named alpha.txt and beta.txt. Which action creates a third file without changing either existing file?","choices":["Writing a new file named gamma.txt","Overwriting alpha.txt","Renaming beta.txt to alpha.txt","Deleting beta.txt"],"answer":0}
+{"id":"qa-06","question":"Which measurement is a duration?","choices":["Twelve gigabytes","Forty milliseconds","Eight watts","Three meters"],"answer":1}
+{"id":"qa-07","question":"Every square in a collection is blue. Object X is a square in that collection. What follows?","choices":["X is red","X is a circle","X is blue","X is the only object"],"answer":2}
+{"id":"qa-08","question":"A program adds 2 to the number 7, then multiplies the result by 3. What is the result?","choices":["23","21","18","27"],"answer":3}
+{"id":"qa-09","question":"Which practice helps compare two experimental model configurations fairly?","choices":["Evaluating both on the same held-out examples","Giving only one configuration the answer key","Using unrelated scoring rules","Changing all parameters at once"],"answer":0}
+{"id":"qa-10","question":"A list contains the values 4, 9, and 2. What is its largest value?","choices":["4","9","2","15"],"answer":1}
+{"id":"qa-11","question":"What does an unavailable sensor reading establish?","choices":["The true value is zero","The sensor measured an infinite value","No measured value is available for that reading","The previous value is guaranteed unchanged"],"answer":2}
+{"id":"qa-12","question":"If a loop executes its body exactly three times and each execution increments a counter by one, how much does the counter increase?","choices":["One","Two","Four","Three"],"answer":3}

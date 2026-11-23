@@ -1,0 +1,37 @@
+name: toy-moe-pipeline
+model:
+  backend: toy
+  model_id: toy-moe
+  device: cpu
+  dtype: float32
+  seed: 42
+  width: 16
+  num_layers: 6
+  num_experts: 4
+  top_k: 2
+  max_context: 256
+datasets:
+  - path: ../data/smoke_text.jsonl
+    kind: text
+    limit: 4
+    split: synthetic
+    purpose: smoke
+  - path: ../data/smoke_qa.jsonl
+    kind: qa
+    limit: 4
+    split: synthetic
+    purpose: smoke
+variants:
+  - name: identity
+    loop: {start: 2, end: 3, steps: 1, mode: block}
+  - name: euler-block
+    loop: {start: 2, end: 3, steps: 2, mode: block, strategy: euler, anchor: 0.5}
+  - name: euler-layer
+    loop: {start: 2, end: 3, steps: 2, mode: layer, strategy: euler, anchor: 0.5}
+  - name: naive-control
+    loop: {start: 2, end: 3, steps: 2, mode: block, strategy: naive, anchor: 0.0}
+stride: 96
+bootstrap_samples: 1000
+seed: 42
+trace: true
+output_dir: ../runs
