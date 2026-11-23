@@ -147,7 +147,7 @@ def test_queue_is_serial_bounded_and_pending_jobs_can_be_cancelled(service_files
     release_first = threading.Event()
     calls = []
 
-    def controlled_experiment(experiment, manager, progress):
+    def controlled_experiment(experiment, manager, progress, on_start=None):
         calls.append(experiment.name)
         first_started.set()
         if not release_first.wait(timeout=10):
