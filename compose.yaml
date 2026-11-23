@@ -7,6 +7,6 @@ services:
       LOOPED_TRANSFORMERS_API_KEY: ${LOOPED_TRANSFORMERS_API_KEY:?Set LOOPED_TRANSFORMERS_API_KEY before starting the service}
     volumes:
       - ./runs:/runs
-      - ./configs:/app/configs:ro
+      - ./configs:/app/configs
       - ./data:/app/data:ro
     restart: unless-stopped
