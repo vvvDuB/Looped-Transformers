@@ -23,7 +23,7 @@
 <button data-page="playground"><svg viewBox="0 0 24 24"><path d="m7 4 13 8-13 8V4Z"/></svg>Playground</button>
 <button data-page="benchmarks"><svg viewBox="0 0 24 24"><path d="M4 20V10m5 10V4m5 16v-7m5 7V8"/></svg>Benchmarks</button>
 <button data-page="runs"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></svg>Runs & Queue</button>
-</nav><div class="side-foot"><div><span class="dot" id="connect-dot"></span><span id="connect-text">Connecting to backend</span></div><div style="margin-top:8px">Research workspace · v0.1</div></div>
+</nav><div class="side-foot"><details style="margin-bottom:12px"><summary style="cursor:pointer">API connection</summary><div class="field" style="margin-top:9px"><label for="api-key-input">API key</label><input id="api-key-input" type="password" autocomplete="off" placeholder="API bearer key" style="width:100%;background:#0d121a;border:1px solid #394456;border-radius:6px;padding:8px;color:#edf1f8"></div><button class="btn small" id="api-key-connect" style="margin-top:8px">Connect</button></details><div><span class="dot" id="connect-dot"></span><span id="connect-text">Connecting to backend</span></div><div style="margin-top:8px">Research workspace · v0.1</div></div>
 </aside>
 <div class="main">
 <header class="top"><div class="crumb">Workspace / <b id="crumb">Overview</b></div><div class="right"><span class="pill" id="model-pill">No model loaded</span><button class="btn small" id="refresh-btn">↻ Refresh</button></div></header>
@@ -49,6 +49,9 @@ let configs=[],runs=[],jobs=[],resident={loaded:false},configDetails={},page='ov
 let projects=[],project=null,modelGroups=[],activeModelKey='',allConfigs=[];
 const PROJECT_KEY='lt-selected-project',MODEL_KEY='lt-selected-model';
 let apiKey=sessionStorage.getItem('lt-api-key')||'';
+$('api-key-input').value=apiKey;
+$('api-key-connect').onclick=()=>{apiKey=$('api-key-input').value.trim();sessionStorage.setItem('lt-api-key',apiKey);refresh(true)};
+
 async function api(path,body){const headers={};if(apiKey)headers.Authorization='Bearer '+apiKey;if(body!==undefined)headers['Content-Type']='application/json';const res=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});let data;try{data=await res.json()}catch{throw Error('Server returned a non-JSON response ('+res.status+')')}if(!res.ok)throw Error(typeof data.detail==='string'?data.detail:JSON.stringify(data.detail));return data}
 function message(text,error=false){const n=$('notice');n.textContent=text;n.classList.remove('hidden');n.classList.toggle('error',error);if(!error)setTimeout(()=>{if(n.textContent===text)n.classList.add('hidden')},8000)}
 function safeText(value){return value===undefined||value===null?'—':String(value)}
