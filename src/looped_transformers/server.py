@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .experiment import experiment_from_dict, load_experiment
 from .inference import ModelManager, generate
+from .projects import ProjectStore, model_key
 from .runner import run_experiment
 from .store import RunStore
 
@@ -25,6 +26,7 @@ from .store import RunStore
 class JobRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     config: str = Field(min_length=1, max_length=200)
+    project_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
 
 
 class GenerateRequest(JobRequest):
@@ -33,6 +35,17 @@ class GenerateRequest(JobRequest):
     max_new_tokens: int = Field(default=32, ge=1, le=256)
     temperature: float = Field(default=0.0, ge=0, le=5)
     seed: int = Field(default=42, ge=0)
+
+
+class CreateProjectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+    description: str = Field(default="", max_length=1000)
+
+
+class AttachConfigRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    config: str = Field(min_length=1, max_length=200)
 
 
 class DerivedRecipeRequest(JobRequest):
@@ -51,12 +64,34 @@ class DerivedRecipeRequest(JobRequest):
 def create_app(config_root="configs", output_root="runs", manager=None):
     config_root = Path(config_root).resolve()
     store = RunStore(output_root)
+    projects = ProjectStore(store)
     manager = manager or ModelManager()
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="looped-transformers")
     slots = threading.BoundedSemaphore(8)
     state_lock = threading.Lock()
     jobs = {}
     api_key = os.environ.get("LOOPED_TRANSFORMERS_API_KEY")
+
+    def available_configs():
+        return sorted(str(p.relative_to(config_root)) for p in config_root.rglob("*")
+                      if p.suffix in {".json", ".yaml", ".yml"} and p.is_file()
+                      and p.resolve().is_relative_to(config_root))
+
+    projects.bootstrap(available_configs())
+
+    def resolved_project(project_id):
+        identifier = project_id or projects.default_id()
+        try:
+            projects.get(identifier)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Project not found") from exc
+        return identifier
+
+    def project_config(project_id, name):
+        identifier = resolved_project(project_id)
+        if not projects.contains(identifier, name):
+            raise HTTPException(status_code=404, detail="Config is not linked to project")
+        return resolve_config(name)
 
     def resolve_config(name):
         path = (config_root / name).resolve()
@@ -106,8 +141,55 @@ def create_app(config_root="configs", output_root="runs", manager=None):
 
     @app.get("/api/configs")
     def configs():
-        return sorted(str(p.relative_to(config_root)) for p in config_root.rglob("*")
-                      if p.suffix in {".json", ".yaml", ".yml"} and p.is_file() and p.resolve().is_relative_to(config_root))
+        return available_configs()
+
+    @app.get("/api/projects")
+    def project_list():
+        return projects.list()
+
+    @app.post("/api/projects", status_code=201)
+    def project_create(body: CreateProjectRequest):
+        try:
+            return projects.create(body.name, body.description)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}")
+    def project_detail(project_id: str):
+        return projects.get(resolved_project(project_id))
+
+    @app.get("/api/projects/{project_id}/models")
+    def project_models(project_id: str):
+        project = projects.get(resolved_project(project_id))
+        grouped = {}
+        for name in project["configs"]:
+            try:
+                experiment = resolve_config(name)
+            except HTTPException:
+                continue
+            model = experiment.model.to_dict()
+            key = model_key(model)
+            if key not in grouped:
+                grouped[key] = {"id": key, "model": model, "configs": []}
+            grouped[key]["configs"].append(name)
+        return list(grouped.values())
+
+    @app.get("/api/projects/{project_id}/runs")
+    def project_runs(project_id: str):
+        return projects.list_runs(resolved_project(project_id))
+
+    @app.post("/api/projects/{project_id}/configs", status_code=201)
+    def attach_config(project_id: str, body: AttachConfigRequest):
+        identifier = resolved_project(project_id)
+        resolve_config(body.config)
+        projects.attach(identifier, body.config)
+        return {"project_id": identifier, "config": body.config}
+
+    @app.delete("/api/projects/{project_id}/configs/{name:path}")
+    def detach_config(project_id: str, name: str):
+        identifier = resolved_project(project_id)
+        projects.detach(identifier, name)
+        return {"project_id": identifier, "config": name, "detached": True}
 
     @app.post("/api/configs/derive", status_code=201)
     def derive_config(body: DerivedRecipeRequest):
@@ -115,7 +197,8 @@ def create_app(config_root="configs", output_root="runs", manager=None):
 
         This never accepts arbitrary model IDs, dataset paths, or executable code.
         """
-        source = resolve_config(body.config)
+        project_id = resolved_project(body.project_id)
+        source = project_config(project_id, body.config)
         raw = source.as_dict()
         raw["name"] = body.name
         raw["variants"] = [{
@@ -144,7 +227,9 @@ def create_app(config_root="configs", output_root="runs", manager=None):
             raise HTTPException(status_code=409, detail="Recipe name already exists") from exc
         except OSError as exc:
             raise HTTPException(status_code=503, detail="Config directory is not writable") from exc
-        return {"config": str(target.relative_to(config_root)), "name": body.name}
+        generated_name = str(target.relative_to(config_root))
+        projects.attach(project_id, generated_name)
+        return {"config": generated_name, "name": body.name, "project_id": project_id}
 
     @app.get("/api/configs/{name:path}")
     def config_details(name: str):
@@ -181,7 +266,8 @@ def create_app(config_root="configs", output_root="runs", manager=None):
 
     @app.post("/api/jobs", status_code=202)
     def submit(body: JobRequest):
-        experiment = resolve_config(body.config)
+        project_id = resolved_project(body.project_id)
+        experiment = project_config(project_id, body.config)
         if not slots.acquire(blocking=False):
             raise HTTPException(status_code=429, detail="Experiment queue is full (8 jobs)")
         job_id = uuid.uuid4().hex
@@ -191,7 +277,8 @@ def create_app(config_root="configs", output_root="runs", manager=None):
             finished = [key for key, value in jobs.items() if value["status"] in {"completed", "failed", "cancelled"}]
             for key in finished[:-100]:
                 jobs.pop(key)
-            jobs[job_id] = {"id": job_id, "config": body.config, "status": "queued", "cancel": event}
+            jobs[job_id] = {"id": job_id, "project_id": project_id, "model_key": model_key(experiment.model.to_dict()),
+                            "config": body.config, "status": "queued", "cancel": event}
 
         def work():
             try:
@@ -209,6 +296,8 @@ def create_app(config_root="configs", output_root="runs", manager=None):
                         jobs[job_id]["progress"] = message
 
                 result = run_experiment(experiment, manager=manager, progress=progress)
+                projects.record_run(project_id, result["run_id"], body.config,
+                                    model_key(experiment.model.to_dict()))
                 with state_lock:
                     jobs[job_id].update(status="completed", run_id=result["run_id"])
             except Exception as exc:
@@ -242,7 +331,7 @@ def create_app(config_root="configs", output_root="runs", manager=None):
 
     @app.post("/api/generate")
     def inference(body: GenerateRequest):
-        experiment = resolve_config(body.config)
+        experiment = project_config(body.project_id, body.config)
         variant = next((v for v in experiment.variants if v.name == body.variant), None)
         if body.variant != "baseline" and variant is None:
             raise HTTPException(status_code=422, detail="Unknown variant")
