@@ -18,6 +18,20 @@ The initial research question is whether a conventional pretrained MoE benefits 
 
 **Current limits:** no training, no production KV/SSM cache implementation, no multi-device offload, no vision processing, and no automatic claim that a transformed model is better. Inkling 2 Mini and Qwen3.8-Flash-Next are documented reference/target architectures; their dedicated adapters are not implemented.
 
+## Project workspaces in Studio
+
+The Studio UI is organized **Project → Model → Configurations → Looped recipes, inference, runs and benchmarks**.
+
+- Select the active project from the sidebar. Create a project via the **+** button or **Projects** page.
+- Add an existing trusted model preset under **Models → Add model**. A project can contain multiple model checkpoints.
+- Select the active model in the sidebar; Loop Builder, Playground, run history and benchmarks are scoped to its configurations.
+- Create a loop recipe from the selected model's configuration. The generated JSON is attached to the active project.
+- Runs persist under the central run registry but retain project/model membership, including failed runs. Existing runs and model presets are assigned to the initial **General Research** project on first boot.
+
+Projects are **organization workspaces**, not user-security boundaries. The same model preset can belong to multiple projects; immutable checkpoints and datasets are not duplicated. The current UI links existing trusted model presets rather than downloading arbitrary model IDs or creating entirely new checkpoints. The existing CLI and unscoped API calls continue to use the default project for compatibility.
+
+The API exposes `GET/POST /api/projects`, project details, model groups, project-scoped run lists and config association endpoints. The project metadata is persisted in `runs/registry.sqlite3`. When using Docker, the `configs` mount must be writable for Studio-generated recipes.
+
 ## Start in a minute
 
 Python 3.11 or newer is required. No model download or GPU is needed for the demo.
