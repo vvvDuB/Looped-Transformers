@@ -295,9 +295,10 @@ def create_app(config_root="configs", output_root="runs", manager=None):
                     with state_lock:
                         jobs[job_id]["progress"] = message
 
-                result = run_experiment(experiment, manager=manager, progress=progress)
-                projects.record_run(project_id, result["run_id"], body.config,
-                                    model_key(experiment.model.to_dict()))
+                result = run_experiment(
+                    experiment, manager=manager, progress=progress,
+                    on_start=lambda run_id: projects.record_run(
+                        project_id, run_id, body.config, model_key(experiment.model.to_dict())))
                 with state_lock:
                     jobs[job_id].update(status="completed", run_id=result["run_id"])
             except Exception as exc:
