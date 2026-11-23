@@ -139,7 +139,7 @@ def create_app(config_root="configs", output_root="runs", manager=None):
             target = target_dir / f"{body.name}.json"
             with target.open("x", encoding="utf-8") as output:
                 json.dump(raw, output, indent=2)
-                output.write("\\n")
+                output.write(chr(10))
         except FileExistsError as exc:
             raise HTTPException(status_code=409, detail="Recipe name already exists") from exc
         except OSError as exc:
