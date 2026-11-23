@@ -1,10 +1,10 @@
 services:
-  looplab:
+  looped-transformers:
     build: .
     ports:
       - '127.0.0.1:8765:8765'
     environment:
-      LOOPLAB_API_KEY: ${LOOPLAB_API_KEY:?Set LOOPLAB_API_KEY before starting the service}
+      LOOPED_TRANSFORMERS_API_KEY: ${LOOPED_TRANSFORMERS_API_KEY:?Set LOOPED_TRANSFORMERS_API_KEY before starting the service}
     volumes:
       - ./runs:/runs
       - ./configs:/app/configs:ro

@@ -45,9 +45,9 @@ trace: true
 ```
 
 ```bash
-looplab run configs/local-text.yaml
-looplab runs --root runs
-looplab serve --configs configs --runs runs
+looped-transformers run configs/local-text.yaml
+looped-transformers runs --root runs
+looped-transformers serve --configs configs --runs runs
 ```
 
 The runner checks exact `K=1` identity and baseline restoration before measuring, then checks restoration again at the end. Inspect `summary.json`, the manifest, and per-dataset artifacts. Identity results should have equal NLL, identical top-1 predictions, and zero distribution distance within numerical precision. The two-pass variant can change scores without changing weights.
@@ -124,7 +124,7 @@ The local QA protocol prompts with the question, lettered choices, and `Answer:`
 Keep the checkpoint, tokenizer, precision, corpus, and prompts fixed. Start with one window and two visits, and compare one change at a time. The CLI can expand a small search:
 
 ```bash
-looplab sweep configs/local-text.yaml --steps 1,2 --anchors 0,0.5 --modes block,layer
+looped-transformers sweep configs/local-text.yaml --steps 1,2 --anchors 0,0.5 --modes block,layer
 ```
 
 `steps` includes the natural visit. `anchor: 0` uses the refined path; `anchor: 1` returns the normal path while still exercising extra computation. Dynamic routing can change on each visit. No current recipe promises frozen expert selections.
@@ -144,10 +144,10 @@ Recorded forward timings include instrumentation and host copies; first-call war
 ## 7. Preserve the recipe and results
 
 ```bash
-looplab show RUN_ID --root runs
-looplab export RUN_ID euler recipe.json --root runs
+looped-transformers show RUN_ID --root runs
+looped-transformers export RUN_ID euler recipe.json --root runs
 ```
 
-The recipe preserves model configuration, resolved model information, the loop transformation, and source run. It requires the original weights and LoopLab's runtime. Keep the configuration, manifest, detailed dataset results, and exact code revision together when reporting findings. Distinguish **mechanics verified**, **real-checkpoint execution verified**, and **quality measured**.
+The recipe preserves model configuration, resolved model information, the loop transformation, and source run. It requires the original weights and Looped Transformers Lab's runtime. Keep the configuration, manifest, detailed dataset results, and exact code revision together when reporting findings. Distinguish **mechanics verified**, **real-checkpoint execution verified**, and **quality measured**.
 
 See [architecture and API](architecture.md) for job management, [research notes](research-notes.md) for scientific boundaries, and the [Qwen integration path](scaling-qwen.md) before attempting a hybrid model.

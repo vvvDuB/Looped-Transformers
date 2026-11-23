@@ -8,7 +8,7 @@ This repository is an experiment platform. A successful run establishes that the
 
 [*Training-Free Looped Transformers*, arXiv:2605.23872](https://arxiv.org/abs/2605.23872), studies recurrence added to frozen checkpoints. The authors report task-specific improvements as well as serious failures from naive repetition. The paper distinguishes repetition of a whole layer window from repetition of each individual layer and discusses damped updates, MoE routing, and cache handling. [Paper HTML](https://arxiv.org/html/2605.23872v1).
 
-LoopLab is an independent implementation with explicitly named transformations, not a claim to reproduce every experiment in that paper. Its first supported execution mode evaluates the entire supplied token prefix without incremental caches. Autoregressive generation can recompute that complete prefix at every step. This is a correctness-oriented reference, and its cost must not be reported as that of an optimized cached decoder.
+Looped Transformers Lab is an independent implementation with explicitly named transformations, not a claim to reproduce every experiment in that paper. Its first supported execution mode evaluates the entire supplied token prefix without incremental caches. Autoregressive generation can recompute that complete prefix at every step. This is a correctness-oriented reference, and its cost must not be reported as that of an optimized cached decoder.
 
 ## Specify the transformation mathematically
 

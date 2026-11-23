@@ -10,13 +10,13 @@ pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
 from fastapi.testclient import TestClient
 
-from looplab.inference import ModelManager
-from looplab.server import create_app
+from looped_transformers.inference import ModelManager
+from looped_transformers.server import create_app
 
 
 @pytest.fixture
 def service_files(tmp_path, monkeypatch):
-    monkeypatch.delenv("LOOPLAB_API_KEY", raising=False)
+    monkeypatch.delenv("LOOPED_TRANSFORMERS_API_KEY", raising=False)
     configs = tmp_path / "configs"
     configs.mkdir()
     data = tmp_path / "text.jsonl"
@@ -133,7 +133,7 @@ def test_foreign_origin_writes_are_blocked_before_work_is_started(service_files)
 
 
 def test_optional_bearer_key_guards_api_reads_and_writes(service_files, monkeypatch):
-    monkeypatch.setenv("LOOPLAB_API_KEY", "local-test-key")
+    monkeypatch.setenv("LOOPED_TRANSFORMERS_API_KEY", "local-test-key")
     with client_for(service_files) as client:
         assert client.get("/api/health").status_code == 401
         assert client.get("/api/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
@@ -154,7 +154,7 @@ def test_queue_is_serial_bounded_and_pending_jobs_can_be_cancelled(service_files
             raise RuntimeError("test did not release worker")
         return {"run_id": "1" * 32}
 
-    monkeypatch.setattr("looplab.server.run_experiment", controlled_experiment)
+    monkeypatch.setattr("looped_transformers.server.run_experiment", controlled_experiment)
     try:
         with client_for(service_files) as client:
             first = client.post("/api/jobs", json={"config": "smoke.json"})

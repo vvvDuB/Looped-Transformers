@@ -7,9 +7,9 @@ import threading
 import numpy as np
 import pytest
 
-from looplab.backends import create_backend
-from looplab.config import LoopConfig, ModelConfig
-from looplab.inference import ModelManager, generate
+from looped_transformers.backends import create_backend
+from looped_transformers.config import LoopConfig, ModelConfig
+from looped_transformers.inference import ModelManager, generate
 
 
 def small_config(**changes):

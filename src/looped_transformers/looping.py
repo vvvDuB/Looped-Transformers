@@ -94,7 +94,7 @@ class TorchLoopPatch:
         self._active = False
 
     def __enter__(self) -> "TorchLoopPatch":
-        if self._active or getattr(self.model, "_looplab_active_patch", None) is not None:
+        if self._active or getattr(self.model, "_looped_transformers_active_patch", None) is not None:
             raise RuntimeError("a loop patch is already active on this model")
         if self.model.training:
             raise RuntimeError("looping requires model.eval()")
@@ -102,7 +102,7 @@ class TorchLoopPatch:
             raise RuntimeError("torch.compile models require a dedicated loop adapter")
         if any(getattr(m, "_hf_hook", None) is not None for m in self.model.modules()):
             raise RuntimeError("Accelerate dispatch/offload hooks are unsupported by the loop adapter")
-        self.model._looplab_active_patch = self
+        self.model._looped_transformers_active_patch = self
         self._active = True
         try:
             def guard(mod: Any, args: tuple, kwargs: dict) -> None:
@@ -165,8 +165,8 @@ class TorchLoopPatch:
         self.handles.clear()
         self._calls.clear()
         self._replay = False
-        if getattr(self.model, "_looplab_active_patch", None) is self:
-            delattr(self.model, "_looplab_active_patch")
+        if getattr(self.model, "_looped_transformers_active_patch", None) is self:
+            delattr(self.model, "_looped_transformers_active_patch")
         self._active = False
 
     def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:

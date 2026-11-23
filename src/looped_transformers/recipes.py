@@ -63,10 +63,10 @@ def load_recipe(path: str | Path) -> tuple[ModelConfig, LoopConfig]:
         raise ValueError(f"Missing recipe fields: {sorted(missing)}")
     if type(raw["schema_version"]) is not int or raw["schema_version"] != 1:
         raise ValueError("Only recipe schema_version=1 is supported")
-    if raw["kind"] != "looplab_runtime_recipe":
+    if raw["kind"] != "looped_transformers_runtime_recipe":
         raise ValueError("Unsupported recipe kind")
-    if raw["requires"] != f"looplab=={__version__}":
-        raise ValueError(f"Recipe requires {raw['requires']!r}; this loader supports looplab=={__version__}")
+    if raw["requires"] != f"looped-transformers=={__version__}":
+        raise ValueError(f"Recipe requires {raw['requires']!r}; this loader supports looped-transformers=={__version__}")
     if raw["weights_modified"] is not False:
         raise ValueError("Only recipes with weights_modified=false are supported")
     if raw["cache_policy"] != "full_context_recompute":

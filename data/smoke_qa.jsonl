@@ -1,4 +1,4 @@
-{"_meta":{"name":"LoopLab synthetic QA smoke set","split":"synthetic","purpose":"smoke","source":"Original synthetic examples authored for this repository; balanced answer positions; not a scientific benchmark."}}
+{"_meta":{"name":"Looped Transformers Lab synthetic QA smoke set","split":"synthetic","purpose":"smoke","source":"Original synthetic examples authored for this repository; balanced answer positions; not a scientific benchmark."}}
 {"id":"qa-01","question":"A box holds three red tokens and two blue tokens. How many tokens are in the box?","choices":["Five","Three","Six","Two"],"answer":0}
 {"id":"qa-02","question":"Which data structure removes the most recently added item first?","choices":["Queue","Stack","Set","Sorted table"],"answer":1}
 {"id":"qa-03","question":"A train departs at 14:10 and arrives 25 minutes later. What is its arrival time?","choices":["14:25","14:30","14:35","14:45"],"answer":2}

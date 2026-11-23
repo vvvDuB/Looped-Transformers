@@ -4,7 +4,7 @@ import unittest
 
 import numpy as np
 
-from looplab.metrics import (
+from looped_transformers.metrics import (
     aggregate_hidden_proximity,
     aggregate_language_model_metrics,
     aggregate_logits_proximity,

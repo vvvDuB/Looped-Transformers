@@ -51,7 +51,7 @@ class HuggingFaceBackend:
             import torch
             from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
         except ImportError as exc:
-            raise RuntimeError("Install looplab's hf extra and a suitable PyTorch build: pip install -e '.[hf]'") from exc
+            raise RuntimeError("Install the project's hf extra and a suitable PyTorch build: pip install -e '.[hf]'") from exc
         self.torch = torch
         self.config = config
         self._lock = threading.Lock()

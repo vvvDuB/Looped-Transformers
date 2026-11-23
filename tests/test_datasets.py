@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from looplab.datasets import load_dataset
+from looped_transformers.datasets import load_dataset
 
 
 class DatasetTests(unittest.TestCase):

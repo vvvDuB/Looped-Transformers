@@ -6,7 +6,7 @@ Source review date: **2026-11-23**. This document describes the upstream archite
 
 Inkling 2 Mini is useful evidence that a **model trained to use recurrence** can make effective use of repeated computation. This project's initial question is whether a **frozen conventional MoE checkpoint** can benefit from an inference-time transformation. Those questions require separate experiments: adding a loop does not import Inkling's trained message gates, training distribution, or capabilities.
 
-The initial LoopLab implementation rejects native looped architectures for generic layer patching. Inkling belongs in the reference registry and in a future dedicated integration, where its native forward pass remains the baseline.
+The initial Looped Transformers Lab implementation rejects native looped architectures for generic layer patching. Inkling belongs in the reference registry and in a future dedicated integration, where its native forward pass remains the baseline.
 
 ## Verified checkpoint properties
 
@@ -30,7 +30,7 @@ The distinction affects observability. A future adapter should label traces with
 
 The separate checkpoint [`thinkingmachines/TML-d24-varloop-research`](https://huggingface.co/thinkingmachines/TML-d24-varloop-research) was designed for varying loop count. Its model card reports training with one through five passes in a `1:2:6:2:1` sampling ratio, followed by post-training at three passes. Its later training differs from Mini's, so a direct comparison between the two checkpoints does not isolate looping. Prefer within-checkpoint comparisons at fixed tokenizer, prompts, generation settings, and task data. [Source: variable-loop model card](https://thinkingmachines.ai/model-card/tml-d24-varloop-research/).
 
-The documented Transformers loading API exposes `text_config={"loop_num_passes": K}` through `AutoModelForMultimodalLM.from_pretrained`. This is an upstream API reference, not a supported LoopLab command. A dedicated adapter must validate that its installed Transformers version provides this class, preserve all other checkpoint settings, and reconstruct caches when `K` changes. Do not change `K` midway through a cached sequence. [Source: variable-pass example](https://huggingface.co/docs/transformers/main/model_doc/inkling2_loop).
+The documented Transformers loading API exposes `text_config={"loop_num_passes": K}` through `AutoModelForMultimodalLM.from_pretrained`. This is an upstream API reference, not a supported Looped Transformers Lab command. A dedicated adapter must validate that its installed Transformers version provides this class, preserve all other checkpoint settings, and reconstruct caches when `K` changes. Do not change `K` midway through a cached sequence. [Source: variable-pass example](https://huggingface.co/docs/transformers/main/model_doc/inkling2_loop).
 
 ## Memory and reproducibility
 

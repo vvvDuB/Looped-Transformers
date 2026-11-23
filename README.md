@@ -1,4 +1,4 @@
-# Looped Transformers
+# Looped Transformers Lab
 
 An experiment infrastructure for studying **frozen Mixture-of-Experts models and recurrent depth**: change the execution of a model, run inference, measure perplexity and proximity to its baseline, inspect expert routing, and retain reproducible benchmark results.
 
@@ -29,8 +29,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev,server]'
 
-looplab run configs/demo.yaml
-looplab serve --configs configs --runs runs
+looped-transformers run configs/demo.yaml
+looped-transformers serve --configs configs --runs runs
 ```
 
 Open **http://127.0.0.1:8765**. Select a configuration, start a run, then select its result to compare baseline and loop variants. `demo.yaml` evaluates four synthetic text documents and four QA examples. Its numbers validate the pipeline; they are not evidence of improved reasoning.
@@ -43,9 +43,9 @@ Install a PyTorch build suitable for your GPU and driver using the [official ins
 
 ```bash
 python -m pip install -e '.[hf,server,dev]'
-looplab inspect configs/qwen3-06b.yaml
-looplab run configs/qwen3-06b.yaml
-looplab generate configs/qwen3-06b.yaml \
+looped-transformers inspect configs/qwen3-06b.yaml
+looped-transformers run configs/qwen3-06b.yaml
+looped-transformers generate configs/qwen3-06b.yaml \
   --variant euler-block --prompt 'Explain why the sky appears blue.' \
   --max-new-tokens 64
 ```
@@ -56,7 +56,7 @@ For a conventional MoE experiment:
 
 ```bash
 python -m pip install -e '.[hf,quant,server,dev]'
-looplab run configs/olmoe-4bit.yaml
+looped-transformers run configs/olmoe-4bit.yaml
 ```
 
 This preset uses `allenai/OLMoE-1B-7B-0924-Instruct`, one CUDA device, and bitsandbytes NF4. Its actual peak memory must be measured on the target machine. GPU kernels, context, tracing, and quantization overhead all matter; active parameter count is not total weight memory. CPU offload and automatic multi-device dispatch are intentionally rejected by the current loop engine.
@@ -97,7 +97,7 @@ result = anchor * natural + (1 - anchor) * x
 ## Run a parameter sweep
 
 ```bash
-looplab sweep configs/qwen3-06b.yaml \
+looped-transformers sweep configs/qwen3-06b.yaml \
   --steps 1,2,3 --anchors 0,0.5 --modes block,layer
 ```
 
@@ -144,11 +144,11 @@ See [the experiment protocol](docs/experiment-protocol.md) for dataset selection
 ## Inspect, retain, and replay
 
 ```bash
-looplab inspect configs/demo.yaml
-looplab runs --root runs
-looplab show RUN_ID --root runs
-looplab export RUN_ID euler-block recipes/toy-euler.json --root runs
-looplab generate-recipe recipes/toy-euler.json --prompt 'A short test' --max-new-tokens 12
+looped-transformers inspect configs/demo.yaml
+looped-transformers runs --root runs
+looped-transformers show RUN_ID --root runs
+looped-transformers export RUN_ID euler-block recipes/toy-euler.json --root runs
+looped-transformers generate-recipe recipes/toy-euler.json --prompt 'A short test' --max-new-tokens 12
 ```
 
 A recipe saves the checkpoint identity and runtime transformation, with an immutable resolved revision when available. It does not duplicate tied weights or pretend to be a standalone Hugging Face checkpoint. Loading a recipe validates its schema, backend and cache policy before using the original weights.
@@ -161,12 +161,12 @@ Each run directory contains:
 - `summary.json`: compact comparisons, structural compute cost and invariant checks.
 - `error.json`: failure/cancellation details when applicable.
 
-`runs/registry.sqlite3` indexes completed, failed, cancelled and in-progress runs. Interrupted processes remain identifiable; after confirming no experiment is still active, `looplab recover --root runs` marks stale running entries interrupted. Generated results, checkpoints and secrets are excluded from Git.
+`runs/registry.sqlite3` indexes completed, failed, cancelled and in-progress runs. Interrupted processes remain identifiable; after confirming no experiment is still active, `looped-transformers recover --root runs` marks stale running entries interrupted. Generated results, checkpoints and secrets are excluded from Git.
 
 ## Local service
 
 ```bash
-looplab serve --configs configs --runs runs --host 127.0.0.1 --port 8765
+looped-transformers serve --configs configs --runs runs --host 127.0.0.1 --port 8765
 ```
 
 The service accepts only existing configuration files beneath the chosen directory. It runs one experiment at a time, holds one model, queues up to eight jobs and supports cooperative cancellation at example boundaries. The main endpoints are:
@@ -182,7 +182,7 @@ The service accepts only existing configuration files beneath the chosen directo
 | GET | `/api/models` | Resident model |
 | POST | `/api/models/unload` | Release resident model |
 
-Interactive API documentation is at `/docs`. Set `LOOPLAB_API_KEY` to require bearer authentication; it is mandatory when binding beyond loopback. Enter the key in the dashboard's API access field. No external UI dependencies or hosted telemetry are used.
+Interactive API documentation is at `/docs`. Set `LOOPED_TRANSFORMERS_API_KEY` to require bearer authentication; it is mandatory when binding beyond loopback. Enter the key in the dashboard's API access field. No external UI dependencies or hosted telemetry are used.
 
 An optional CPU Docker setup is included:
 

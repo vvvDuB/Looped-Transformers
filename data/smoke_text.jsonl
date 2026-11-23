@@ -1,4 +1,4 @@
-{"_meta":{"name":"LoopLab synthetic text smoke set","split":"synthetic","purpose":"smoke","source":"Original synthetic examples authored for this repository; not evidence of model quality."}}
+{"_meta":{"name":"Looped Transformers Lab synthetic text smoke set","split":"synthetic","purpose":"smoke","source":"Original synthetic examples authored for this repository; not evidence of model quality."}}
 {"id":"text-01","text":"A controlled experiment begins with a reference measurement. Changing one parameter at a time helps identify which change caused the observed result."}
 {"id":"text-02","text":"The library opens at nine in the morning. A reader arrives ten minutes early and waits outside until the doors open."}
 {"id":"text-03","text":"A queue processes its oldest waiting item first. A stack removes the item that was added most recently."}

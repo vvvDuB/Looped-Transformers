@@ -1,6 +1,6 @@
 # Architecture and operation
 
-LoopLab provides one experiment engine through Python, a CLI, and a local HTTP dashboard. Its initial transformation changes execution order and residual updates while retaining the original weights. Its reusable output is a **runtime recipe**, not a newly trained or independently loadable checkpoint.
+Looped Transformers Lab provides one experiment engine through Python, a CLI, and a local HTTP dashboard. Its initial transformation changes execution order and residual updates while retaining the original weights. Its reusable output is a **runtime recipe**, not a newly trained or independently loadable checkpoint.
 
 ## Components
 
@@ -63,25 +63,25 @@ The output root contains `registry.sqlite3` and one directory per 32-character r
 
 JSON artifacts are replaced atomically. SQLite uses transactions and WAL. A run is marked completed only after its final baseline restoration check. The source-byte hash and selected-row hash distinguish the input file from the evaluated subset.
 
-HTTP job IDs describe in-memory scheduling; run IDs identify durable experiment records. These are different IDs. Completed jobs expose their run ID. A cancelled active job reports `cancelled` in the queue; the persistent run also records `cancelled` with an error artifact. Cancellation requested after a terminal job is a no-op. A server restart loses queue history but retains experiment records. Use `looplab recover --root runs` only after interrupted work has stopped; it marks stale running records interrupted rather than resuming computation.
+HTTP job IDs describe in-memory scheduling; run IDs identify durable experiment records. These are different IDs. Completed jobs expose their run ID. A cancelled active job reports `cancelled` in the queue; the persistent run also records `cancelled` with an error artifact. Cancellation requested after a terminal job is a no-op. A server restart loses queue history but retains experiment records. Use `looped-transformers recover --root runs` only after interrupted work has stopped; it marks stale running records interrupted rather than resuming computation.
 
 ## CLI
 
 ```bash
-looplab run configs/local-text.yaml
-looplab inspect configs/local-text.yaml
-looplab sweep configs/local-text.yaml --steps 1,2 --anchors 0,0.5 --modes block,layer
-looplab generate configs/local-text.yaml --prompt "Explain a queue." --variant euler --max-new-tokens 32
-looplab runs --root runs
-looplab show RUN_ID --root runs
-looplab export RUN_ID euler recipe.json --root runs
+looped-transformers run configs/local-text.yaml
+looped-transformers inspect configs/local-text.yaml
+looped-transformers sweep configs/local-text.yaml --steps 1,2 --anchors 0,0.5 --modes block,layer
+looped-transformers generate configs/local-text.yaml --prompt "Explain a queue." --variant euler --max-new-tokens 32
+looped-transformers runs --root runs
+looped-transformers show RUN_ID --root runs
+looped-transformers export RUN_ID euler recipe.json --root runs
 ```
 
 `inspect` loads the selected backend and prints its execution schedules; for HF it can download and allocate weights. It is not a lightweight remote metadata lookup. `sweep` expands the existing windows into named variants with a limit on search size. `export` requires a completed run and records the original model plus the chosen runtime intervention. Keep the original checkpoint available when using an exported recipe.
 
 ## HTTP API
 
-Start locally with `looplab serve --configs configs --runs runs`. The dashboard is at `http://127.0.0.1:8765/`; FastAPI exposes the generated API schema at `/docs`. Config names are paths relative to the configured root. The API accepts existing configuration files, not arbitrary submitted Python or checkpoint modifications.
+Start locally with `looped-transformers serve --configs configs --runs runs`. The dashboard is at `http://127.0.0.1:8765/`; FastAPI exposes the generated API schema at `/docs`. Config names are paths relative to the configured root. The API accepts existing configuration files, not arbitrary submitted Python or checkpoint modifications.
 
 | Method and path | Operation |
 | --- | --- |
@@ -99,7 +99,7 @@ Start locally with `looplab serve --configs configs --runs runs`. The dashboard 
 
 Generation JSON contains `config`, `prompt`, optional `variant` (default `baseline`), `max_new_tokens` (HTTP limit 256), `temperature`, and `seed`. The API returns HTTP 429 when the experiment queue is full. Invalid or unknown variants are rejected.
 
-If `LOOPLAB_API_KEY` is set, `/api/` calls require `Authorization: Bearer <key>`. The CLI requires that setting before binding beyond localhost. The server rejects writes from a different browser origin. Credentials are deployment settings and do not belong in experiment configurations.
+If `LOOPED_TRANSFORMERS_API_KEY` is set, `/api/` calls require `Authorization: Bearer <key>`. The CLI requires that setting before binding beyond localhost. The server rejects writes from a different browser origin. Credentials are deployment settings and do not belong in experiment configurations.
 
 ## Extension points
 

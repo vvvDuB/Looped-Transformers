@@ -7,4 +7,4 @@ COPY configs ./configs
 COPY data ./data
 ENV PYTHONUNBUFFERED=1 OPENBLAS_NUM_THREADS=1
 EXPOSE 8765
-CMD ["looplab", "serve", "--host", "0.0.0.0", "--configs", "configs", "--runs", "/runs"]
+CMD ["looped-transformers", "serve", "--host", "0.0.0.0", "--configs", "configs", "--runs", "/runs"]

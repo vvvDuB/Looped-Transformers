@@ -5,10 +5,10 @@ import json
 import numpy as np
 import pytest
 
-from looplab import __version__
-from looplab.backends import create_backend
-from looplab.config import LoopConfig, ModelConfig
-from looplab.recipes import load_recipe
+from looped_transformers import __version__
+from looped_transformers.backends import create_backend
+from looped_transformers.config import LoopConfig, ModelConfig
+from looped_transformers.recipes import load_recipe
 
 
 def _recipe(model=None, resolved=None):
@@ -16,10 +16,10 @@ def _recipe(model=None, resolved=None):
     if resolved is None:
         resolved = create_backend(model).info()
     return {
-        "schema_version": 1, "kind": "looplab_runtime_recipe", "model": asdict(model),
+        "schema_version": 1, "kind": "looped_transformers_runtime_recipe", "model": asdict(model),
         "resolved_model": resolved,
         "variant": {"name": "layer_k2", "loop": asdict(LoopConfig(1, 2, mode="layer"))},
-        "source_run": "20261123-fixture", "requires": f"looplab=={__version__}",
+        "source_run": "20261123-fixture", "requires": f"looped-transformers=={__version__}",
         "weights_modified": False, "cache_policy": "full_context_recompute",
         "note": "Reload original weights and apply the runtime recipe.",
     }
@@ -46,7 +46,7 @@ def test_toy_roundtrip_reproduces_the_exact_transformed_logits(tmp_path):
 def test_hf_recipe_pins_resolved_commit_without_loading_or_network(tmp_path, monkeypatch):
     def forbidden(*args, **kwargs):
         raise AssertionError("recipe loading must not load weights")
-    monkeypatch.setattr("looplab.backends.create_backend", forbidden)
+    monkeypatch.setattr("looped_transformers.backends.create_backend", forbidden)
     model = ModelConfig(backend="hf", model_id="Qwen/Qwen3-0.6B-Base", revision="main")
     sha = "a" * 40
     resolved = {"backend": "hf", "model_id": model.model_id, "architecture": "qwen3",
@@ -60,7 +60,7 @@ def test_hf_recipe_pins_resolved_commit_without_loading_or_network(tmp_path, mon
 @pytest.mark.parametrize("key,value", [
     ("schema_version", True), ("schema_version", 2), ("kind", "pickle"),
     ("weights_modified", True), ("weights_modified", 0),
-    ("cache_policy", "shared_kv"), ("requires", "looplab==99.0.0"),
+    ("cache_policy", "shared_kv"), ("requires", "looped-transformers==99.0.0"),
     ("source_run", ""), ("note", []), ("variant", {}), ("resolved_model", []),
 ])
 def test_recipe_rejects_invalid_capability_or_schema(tmp_path, key, value):

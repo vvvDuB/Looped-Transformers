@@ -9,12 +9,12 @@ import json
 import numpy as np
 import pytest
 
-from looplab.backends.toy import ToyMoEBackend
-from looplab.config import LoopConfig, ModelConfig
-from looplab.experiment import DatasetSpec, Experiment, Variant, experiment_from_dict, load_experiment
-from looplab.inference import ModelManager
-from looplab.runner import run_experiment, text_windows
-from looplab.store import RunStore
+from looped_transformers.backends.toy import ToyMoEBackend
+from looped_transformers.config import LoopConfig, ModelConfig
+from looped_transformers.experiment import DatasetSpec, Experiment, Variant, experiment_from_dict, load_experiment
+from looped_transformers.inference import ModelManager
+from looped_transformers.runner import run_experiment, text_windows
+from looped_transformers.store import RunStore
 
 
 @pytest.mark.parametrize("length,context,stride", [

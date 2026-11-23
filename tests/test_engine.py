@@ -5,10 +5,10 @@ import unittest
 
 import numpy as np
 
-from looplab.backends import create_backend
-from looplab.backends.huggingface import require_adapter
-from looplab.config import LoopConfig, ModelConfig
-from looplab.looping import assert_cache_free, refine
+from looped_transformers.backends import create_backend
+from looped_transformers.backends.huggingface import require_adapter
+from looped_transformers.config import LoopConfig, ModelConfig
+from looped_transformers.looping import assert_cache_free, refine
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -159,7 +159,7 @@ class HuggingFaceIntegrationTests(unittest.TestCase):
             Qwen3MoeConfig, Qwen3MoeForCausalLM, Qwen2MoeConfig, Qwen2MoeForCausalLM,
             MixtralConfig, MixtralForCausalLM,
         )
-        from looplab.backends.huggingface import HuggingFaceBackend
+        from looped_transformers.backends.huggingface import HuggingFaceBackend
         torch.manual_seed(7)
         common = dict(vocab_size=37, hidden_size=16, intermediate_size=32,
                       num_hidden_layers=4, num_attention_heads=2,
@@ -233,14 +233,14 @@ class HuggingFaceIntegrationTests(unittest.TestCase):
 
     def test_cache_rejection_and_exception_rollback(self):
         import torch
-        from looplab.looping import TorchLoopPatch
+        from looped_transformers.looping import TorchLoopPatch
         backend = self.make_backend()
         ids = [1, 8, 13, 9]
         base = backend.forward(ids).logits
         with self.assertRaises(RuntimeError):
             with TorchLoopPatch(backend.model, backend.layers, LoopConfig(1, 2)):
                 backend.model(input_ids=torch.tensor([ids]), use_cache=True)
-        self.assertFalse(hasattr(backend.model, "_looplab_active_patch"))
+        self.assertFalse(hasattr(backend.model, "_looped_transformers_active_patch"))
         np.testing.assert_array_equal(base, backend.forward(ids).logits)
         with self.assertRaisesRegex(RuntimeError, "injected failure"):
             with TorchLoopPatch(backend.model, backend.layers, LoopConfig(1, 2)):
@@ -248,7 +248,7 @@ class HuggingFaceIntegrationTests(unittest.TestCase):
         np.testing.assert_array_equal(base, backend.forward(ids).logits)
 
     def test_concurrent_calls_and_duplicate_patch_fail(self):
-        from looplab.looping import TorchLoopPatch
+        from looped_transformers.looping import TorchLoopPatch
         backend = self.make_backend()
         backend._lock.acquire()
         try:

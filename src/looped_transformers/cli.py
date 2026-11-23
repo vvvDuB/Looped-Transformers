@@ -19,7 +19,7 @@ def _print(value):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(prog="looplab", description="Frozen MoE transformation and evaluation lab")
+    parser = argparse.ArgumentParser(prog="looped-transformers", description="Frozen MoE transformation and evaluation lab")
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("run", "sweep", "inspect", "generate"):
         sub = commands.add_parser(name)
@@ -84,16 +84,16 @@ def main(argv=None):
             variant = next((v for v in row["config"]["variants"] if v["name"] == args.variant), None)
             if variant is None:
                 raise ValueError(f"Unknown variant: {args.variant}")
-            recipe = {"schema_version": 1, "kind": "looplab_runtime_recipe", "model": row["config"]["model"],
+            recipe = {"schema_version": 1, "kind": "looped_transformers_runtime_recipe", "model": row["config"]["model"],
                       "resolved_model": row["summary"]["model"], "variant": variant,
-                      "source_run": args.run_id, "requires": "looplab==0.1.0",
+                      "source_run": args.run_id, "requires": "looped-transformers==0.1.0",
                       "weights_modified": False, "cache_policy": "full_context_recompute",
                       "note": "Load the original checkpoint and apply this runtime recipe; this is not a standalone weight checkpoint."}
             write_json(Path(args.output), recipe)
             _print({"saved": str(Path(args.output).resolve()), "recipe": recipe})
         elif args.command == "serve":
-            if args.host not in {"127.0.0.1", "localhost", "::1"} and not os.environ.get("LOOPLAB_API_KEY"):
-                raise ValueError("Set LOOPLAB_API_KEY before binding beyond localhost")
+            if args.host not in {"127.0.0.1", "localhost", "::1"} and not os.environ.get("LOOPED_TRANSFORMERS_API_KEY"):
+                raise ValueError("Set LOOPED_TRANSFORMERS_API_KEY before binding beyond localhost")
             import uvicorn
             from .server import create_app
             uvicorn.run(create_app(args.configs, args.runs), host=args.host, port=args.port)
@@ -149,7 +149,7 @@ def main(argv=None):
                 finally:
                     manager.unload()
     except (ValueError, KeyError, OSError, RuntimeError, ImportError, TypeError) as exc:
-        print(f"looplab: {type(exc).__name__}: {exc}", file=sys.stderr)
+        print(f"looped-transformers: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
     return 0
 

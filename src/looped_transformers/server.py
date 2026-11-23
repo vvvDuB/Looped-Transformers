@@ -38,11 +38,11 @@ def create_app(config_root="configs", output_root="runs", manager=None):
     config_root = Path(config_root).resolve()
     store = RunStore(output_root)
     manager = manager or ModelManager()
-    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="looplab")
+    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="looped-transformers")
     slots = threading.BoundedSemaphore(8)
     state_lock = threading.Lock()
     jobs = {}
-    api_key = os.environ.get("LOOPLAB_API_KEY")
+    api_key = os.environ.get("LOOPED_TRANSFORMERS_API_KEY")
 
     def resolve_config(name):
         path = (config_root / name).resolve()
@@ -62,7 +62,7 @@ def create_app(config_root="configs", output_root="runs", manager=None):
         executor.shutdown(wait=True, cancel_futures=True)
         manager.unload()
 
-    app = FastAPI(title="LoopLab", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Looped Transformers Lab", version="0.1.0", lifespan=lifespan)
 
     @app.middleware("http")
     async def guard(request: Request, call_next):

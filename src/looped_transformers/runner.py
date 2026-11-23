@@ -37,7 +37,7 @@ def text_windows(ids: list[int], context: int, stride: int):
 
 def _environment() -> dict:
     packages = {}
-    for package in ("looplab", "numpy", "torch", "transformers", "accelerate",
+    for package in ("looped-transformers", "numpy", "torch", "transformers", "accelerate",
                     "bitsandbytes", "PyYAML"):
         try:
             packages[package] = importlib.metadata.version(package)
