@@ -203,10 +203,12 @@ def _evaluate_qa(backend, dataset, experiment, progress):
 
 
 def run_experiment(experiment: Experiment, manager: ModelManager | None = None,
-                   progress=None) -> dict:
+                   progress=None, on_start=None) -> dict:
     progress = progress or (lambda message: None)
     store = RunStore(experiment.output_dir)
     run_id = store.start(experiment.name, experiment.as_dict())
+    if on_start is not None:
+        on_start(run_id)
     folder = store.path(run_id)
     started = time.perf_counter()
     own_manager = manager is None
