@@ -182,3 +182,48 @@ def test_queue_is_serial_bounded_and_pending_jobs_can_be_cancelled(service_files
             assert len(calls) == 2
     finally:
         release_first.set()
+
+
+def test_studio_derived_recipe_is_valid_and_executable(service_files):
+    with client_for(service_files) as client:
+        detail = client.get("/api/configs/smoke.json")
+        assert detail.status_code == 200
+        assert detail.json()["model"]["backend"] == "toy"
+        assert detail.json()["variants"][0]["name"] == "loop2"
+        payload = {
+            "config": "smoke.json", "name": "studio-smoke",
+            "variant_name": "euler-loop", "start": 1, "end": 2,
+            "steps": 2, "mode": "block", "strategy": "euler",
+            "anchor": 0.5,
+        }
+        saved = client.post("/api/configs/derive", json=payload)
+        assert saved.status_code == 201, saved.text
+        name = saved.json()["config"]
+        assert name == "generated/studio-smoke.json"
+        assert name in client.get("/api/configs").json()
+        cfg = client.get("/api/configs/" + name).json()
+        assert cfg["variants"][0]["loop"]["steps"] == 2
+        assert cfg["model"]["backend"] == "toy"
+        assert client.post("/api/configs/derive", json=payload).status_code == 409
+        queued = client.post("/api/jobs", json={"config": name})
+        assert queued.status_code == 202
+        assert await_job(client, queued.json()["id"])["status"] == "completed"
+
+
+def test_studio_recipe_rejects_invalid_and_unsafe_input(service_files):
+    with client_for(service_files) as client:
+        recipe = {
+            "config": "smoke.json", "name": "safe-name",
+            "variant_name": "euler", "start": 1, "end": 2,
+            "steps": 2, "mode": "block", "strategy": "euler",
+            "anchor": 0.5,
+        }
+        for change in (
+            {"name": "../traversal"}, {"variant_name": "baseline"},
+            {"start": 3, "end": 1}, {"end": 99},
+            {"steps": 0}, {"steps": 1000}, {"anchor": 1.2},
+            {"config": "../outside.json"}, {"model": {"model_id": "not-allowed"}},
+        ):
+            response = client.post("/api/configs/derive", json=recipe | change)
+            assert response.status_code in {404, 422}, (change, response.text)
+        assert not (service_files[0] / "generated").exists()
